@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cache Lab — a slow database behind a mini Redis: watch cache-aside hits, TTL expiry, and a stampede collapse to one query under single-flight.">
+  <title>Cache Lab — why Redis is fast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+<!-- pb-shell --><link rel="stylesheet" href="./pb-shell.css"><!-- pb-shell --><!-- pb-back --><link rel="stylesheet" href="./pb-back.css"><!-- pb-back --></head>
+<body>
+<a class="skip-link" href="#labs">Skip to labs</a>
+<main>
+  <nav aria-label="Primary"><a aria-current="page" href="/">Lab</a><a href="/guide.html">Guide</a><a href="https://github.com/anhquanbd2021/why-redis-is-fast">Source</a></nav>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Cache Lab · slow DB behind a mini Redis</p>
+      <h1>"In-memory" is a third of the answer.</h1>
+      <p class="lede">A simulated database pays <strong>60 ms</strong> per query. Put a tiny Redis in front of it and watch the same read drop to microseconds — then expire a hot key and watch a naive cache stampede the database while single-flight sends exactly one query.</p>
+    </div>
+    <p class="warning"><strong>Safe educational demo.</strong> All simulation runs in your browser — no network calls, no real Redis, latencies are modeled not measured.</p>
+  </header>
+
+  <section class="workspace" id="labs" tabindex="-1" aria-label="Latency lab">
+    <section class="panel controls" aria-labelledby="latency-title">
+      <div><p class="eyebrow">Latency lab</p><h2 id="latency-title">Same row, two paths</h2></div>
+      <label for="lat-key">Product key<select id="lat-key"></select></label>
+      <label for="lat-dbms">Simulated DB latency (ms)<span id="lat-dbms-out">60 ms</span><input type="range" id="lat-dbms" min="10" max="200" step="5" value="60"></label>
+      <button id="lat-run" type="button">Run 20 reads each way</button>
+      <p class="muted">DB-only: every read pays the latency. Cached: one miss pays it, nineteen hits skip it.</p>
+    </section>
+    <section class="panel" aria-labelledby="lat-results-title">
+      <div class="section-heading"><div><p class="eyebrow">Report</p><h2 id="lat-results-title">Average read cost</h2></div><span id="lat-badge" class="badge" role="status" aria-live="polite">Ready</span></div>
+      <div class="comparison">
+        <article><p class="eyebrow danger-text">Database only</p><p class="big-number" id="lat-db-avg"><span class="ph">—</span></p><p class="muted" id="lat-db-detail">20 queries to the DB</p></article>
+        <article><p class="eyebrow success-text">Cache-aside</p><p class="big-number" id="lat-cache-avg"><span class="ph">—</span></p><p class="muted" id="lat-cache-detail">1 miss + 19 hits</p></article>
+      </div>
+      <div class="bars"><div class="bar db" id="lat-bar-db"></div><div class="bar cache" id="lat-bar-cache"></div></div>
+    </section>
+  </section>
+
+  <section class="workspace" aria-label="Cache-aside lab">
+    <section class="panel controls" aria-labelledby="aside-title">
+      <div><p class="eyebrow">Cache-aside lab</p><h2 id="aside-title">A hot key, a TTL, and a wave of requests</h2></div>
+      <label for="scenario">Scenario<select id="scenario"></select></label>
+      <p class="muted" id="scenario-desc"></p>
+      <div class="btn-row">
+        <button id="run-naive" type="button">Run naive cache-aside</button>
+        <button id="run-safe" type="button">Run with single-flight</button>
+      </div>
+      <div class="btn-row">
+        <button id="advance" type="button" class="secondary">Advance clock past TTL</button>
+        <button id="reset" type="button" class="secondary">Reset lab</button>
+      </div>
+      <p class="muted">The clock is virtual — advancing it expires every TTL'd key at once, so the next run is a cold wave (the stampede moment).</p>
+    </section>
+    <section class="panel" aria-labelledby="aside-results-title">
+      <div class="section-heading"><div><p class="eyebrow">Report</p><h2 id="aside-results-title">Last run</h2></div><span id="aside-badge" class="badge" role="status" aria-live="polite">Ready</span></div>
+      <ul class="stat-grid" id="aside-stats">
+        <li><span class="stat-num" id="st-hits"><span class="ph">—</span></span><span class="stat-label">cache hits</span></li>
+        <li><span class="stat-num" id="st-misses"><span class="ph">—</span></span><span class="stat-label">misses</span></li>
+        <li><span class="stat-num" id="st-db"><span class="ph">—</span></span><span class="stat-label">DB queries</span></li>
+        <li><span class="stat-num" id="st-peak"><span class="ph">—</span></span><span class="stat-label">peak concurrent DB</span></li>
+        <li><span class="stat-num" id="st-avg"><span class="ph">—</span></span><span class="stat-label">avg latency</span></li>
+        <li><span class="stat-num" id="st-p95"><span class="ph">—</span></span><span class="stat-label">p95 latency</span></li>
+      </ul>
+      <ol id="event-log" class="results compact" aria-label="Request log" tabindex="0"></ol>
+    </section>
+  </section>
+
+  <section class="workspace" aria-label="Type lab">
+    <section class="panel" aria-labelledby="type-title">
+      <div><p class="eyebrow">Type lab</p><h2 id="type-title">Leaderboard: sorted set vs. fetch-all-and-sort</h2></div>
+      <p class="muted" id="type-desc">The catalog's <code>score</code> column is the player table. <code>ZREVRANGE 0 9</code> reads the top ten in fixed cost; the naive route reads every row and sorts it.</p>
+      <div class="btn-row">
+        <button id="type-run" type="button">Replay 120 score events, then read top 10</button>
+      </div>
+      <div class="comparison">
+        <article><p class="eyebrow danger-text">Fetch all + sort</p><p class="big-number" id="type-scan-cost"><span class="ph">—</span></p><p class="muted">rows touched</p></article>
+        <article><p class="eyebrow success-text">Sorted set (ZREVRANGE)</p><p class="big-number" id="type-zset-cost"><span class="ph">—</span></p><p class="muted">rows touched</p></article>
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="board-title">
+      <div class="section-heading"><div><p class="eyebrow">Leaderboard</p><h2 id="board-title">Top 10</h2></div><span id="type-badge" class="badge">Ready</span></div>
+      <ol id="board" class="board" aria-label="Top scores" tabindex="0"></ol>
+    </section>
+  </section>
+
+  <p class="foot"><a href="/guide.html">Read the mechanism guide</a> · <a href="https://github.com/anhquanbd2021/why-redis-is-fast">Inspect source and tests</a></p>
+</main>
+<script type="module" src="/app.js"></script>
+<!-- pb-shell --><a class="pb-shell" href="https://github.com/anhquanbd2021/why-redis-is-fast" title="why-redis-is-fast — an Article Playbook demo (view source)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="2" fill="#2dd4bf"/><rect x="13" y="2" width="9" height="9" rx="2" fill="#2dd4bf" opacity=".45"/><rect x="2" y="13" width="9" height="9" rx="2" fill="#2dd4bf" opacity=".45"/><rect x="13" y="13" width="9" height="9" rx="4.5" fill="#2dd4bf"/></svg><b>why-redis-is-fast</b><i>DEMO</i></a><!-- pb-shell --><!-- pb-back --><a class="pb-back" id="pb-back" href="https://github.com/anhquanbd2021/why-redis-is-fast" title="Back to the article — why-redis-is-fast">← Article <i>PLAYBOOK</i></a><script>(function(){var a=document.getElementById('pb-back');if(!a)return;var h=location.hostname;if(/^(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(h)){a.href='//'+h+':'+(/^(localhost|127\.0\.0\.1)$/.test(h)?'1234':'30082')+'/microsites/article.html?slug=why-redis-is-fast';}})();</script><!-- pb-back --></body>
+</html>

@@ -1,0 +1,14 @@
+[
+  { "id": "sku-101", "name": "Trail runner sneakers", "price": 89.99, "score": 412 },
+  { "id": "sku-102", "name": "Merino base layer", "price": 64.50, "score": 388 },
+  { "id": "sku-103", "name": "Insulated bottle 1L", "price": 29.95, "score": 356 },
+  { "id": "sku-104", "name": "Ultralight daypack", "price": 119.00, "score": 301 },
+  { "id": "sku-105", "name": "Camping headlamp", "price": 42.00, "score": 274 },
+  { "id": "sku-106", "name": "Trekking poles (pair)", "price": 79.99, "score": 240 },
+  { "id": "sku-107", "name": "Rain shell jacket", "price": 149.00, "score": 233 },
+  { "id": "sku-108", "name": "Wool hiking socks x3", "price": 24.99, "score": 198 },
+  { "id": "sku-109", "name": "Portable stove kit", "price": 59.50, "score": 175 },
+  { "id": "sku-110", "name": "Sleeping pad", "price": 99.00, "score": 150 },
+  { "id": "sku-111", "name": "Water filter straw", "price": 34.95, "score": 121 },
+  { "id": "sku-112", "name": "Dry bag 10L", "price": 19.99, "score": 96 }
+]

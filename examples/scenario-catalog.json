@@ -1,0 +1,11 @@
+{
+  "name": "catalog-browse",
+  "description": "Uniform browsing across the whole catalog: misses only for keys never seen before, then steady hits until TTL.",
+  "requests": 60,
+  "concurrency": 8,
+  "hotKey": null,
+  "hotFrac": 0,
+  "ttlMs": 8000,
+  "dbLatencyMs": 60,
+  "seed": 7
+}

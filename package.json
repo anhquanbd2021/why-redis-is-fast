@@ -1,0 +1,16 @@
+{
+  "name": "why-redis-is-fast-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cache Lab — a slow database behind a mini Redis: watch cache-aside hits, TTL expiry, and a stampede collapse to one query under single-flight.",
+  "scripts": {
+    "start": "node app/server.js",
+    "report": "node scripts/cache-report.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "check": "npm test && npm run report"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

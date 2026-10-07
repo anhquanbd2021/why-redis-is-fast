@@ -1,0 +1,11 @@
+{
+  "name": "hot-key-expiry",
+  "description": "One viral product: half the traffic hits a single key. Naive cache-aside stampedes the DB when the key expires; single-flight collapses it to one query.",
+  "requests": 60,
+  "concurrency": 12,
+  "hotKey": "sku-101",
+  "hotFrac": 0.5,
+  "ttlMs": 8000,
+  "dbLatencyMs": 60,
+  "seed": 42
+}

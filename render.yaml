@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: why-redis-is-fast
+    runtime: node
+    plan: free
+    buildCommand: npm run check
+    startCommand: npm start
+    healthCheckPath: /health

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The three mechanisms behind Redis's speed, and what this lab does and does not simulate.">
+  <title>Guide — Cache Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+<!-- pb-shell --><link rel="stylesheet" href="./pb-shell.css"><!-- pb-shell --><!-- pb-back --><link rel="stylesheet" href="./pb-back.css"><!-- pb-back --></head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<main>
+  <nav aria-label="Primary"><a href="/">Lab</a><a aria-current="page" href="/guide.html">Guide</a><a href="https://github.com/anhquanbd2021/why-redis-is-fast">Source</a></nav>
+  <h1 id="content" tabindex="-1">Why Redis is fast — the mechanics</h1>
+  <p class="lede">"In-memory" is the slogan. Three mechanisms are the machinery — each removes a different cost, each has its own edge.</p>
+
+  <section class="guide-section">
+    <h2>1. RAM vs. disk — nanoseconds vs. milliseconds</h2>
+    <p>A main-memory read costs ~100 <strong>nanoseconds</strong>. An SSD read costs ~100 <strong>microseconds</strong> (~1,000×); a spinning disk can cost ~10 <strong>milliseconds</strong> (~100,000×). Databases hide this with buffer pools and caches of their own, but a miss still reaches disk. Redis keeps the working set in RAM — a <code>GET</code> is a pointer dereference, not a disk seek. The latency lab replays this: 20 reads through the DB pay the latency 20 times; through the cache, once.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>2. One thread, no locks</h2>
+    <p>Redis runs commands on a single event-driven thread over non-blocking I/O. No locks, no mutex queues, no context switches — and every command is atomic for free, which is why counters and rate limiters are trivially correct on it. The edge: <strong>one slow command stalls everyone</strong>. <code>KEYS *</code> on a big keyspace, or an O(n) read over millions of members, blocks every client. Production habit: <code>SCAN</code>/<code>HSCAN</code>/<code>SSCAN</code>/<code>ZSCAN</code> cursors instead of full scans.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>3. The data structure is the performance</h2>
+    <p>Strings, hashes, lists, sets, sorted sets — the type matched to the access pattern is where the speed comes from. The type lab proves it with a leaderboard: fetch-all-and-sort touches every row per read, while a sorted set costs <code>ZINCRBY</code> (log n) per update and <code>ZREVRANGE 0 9</code> for the top ten — a fixed, tiny cost at any table size. The anti-pattern to unlearn: JSON blob per key, deserialize to read one field.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>4. Cache-aside, and the stampede</h2>
+    <p>The default placement: app checks Redis → miss → read DB → populate with a TTL → return. One slow read, then fast hits. The failure arrives when a <strong>hot key expires</strong>: every concurrent request misses at once and all of them query the database. The lab makes it visible — run <em>naive</em>, watch the DB-query count and the peak-concurrency counter; run <em>single-flight</em> and the same cold wave produces exactly one DB fetch. Other fixes: a short lock on the fill, jittered TTLs, or proactively refreshing keys before expiry.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>5. Honest limits</h2>
+    <ul>
+      <li><strong>Memory is the ceiling</strong> — the dataset must fit in RAM; eviction policies (<code>allkeys-lru</code> etc.) choose what drops when you hit it.</li>
+      <li><strong>A cache is disposable</strong> — the database stays the source of truth. Persistence options (RDB snapshots, AOF log) exist but make Redis a different role: a deployment decision, not an accident.</li>
+      <li><strong>Single-threaded cuts both ways</strong> — it buys atomicity and predictability; it also means one heavyweight command pauses the world.</li>
+    </ul>
+  </section>
+
+  <section class="guide-section">
+    <h2>What this lab simulates — and what it does not</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Real</th><th>This lab</th></tr>
+      <tr><td>Disk/DB latency ~tens of ms; RAM ~100 ns</td><td>Configurable ms sleep vs. ~0 ms lookup — a ratio model, not a benchmark</td></tr>
+      <tr><td>Redis: full type set, eviction, replication, persistence</td><td>Strings with TTL + sorted sets only</td></tr>
+      <tr><td>Network hop per command</td><td>In-process function call</td></tr>
+      <tr><td>Multi-node, failover, real traffic</td><td>Single-process event loop</td></tr>
+    </table></div>
+    <p class="muted">The numbers are illustrative — the <em>mechanics</em> (hit/miss, TTL expiry, stampede vs. single-flight, per-structure cost) are faithful.</p>
+  </section>
+
+  <p class="foot"><a href="/">Back to the lab</a></p>
+</main>
+<!-- pb-shell --><a class="pb-shell" href="https://github.com/anhquanbd2021/why-redis-is-fast" title="why-redis-is-fast — an Article Playbook demo (view source)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="2" fill="#2dd4bf"/><rect x="13" y="2" width="9" height="9" rx="2" fill="#2dd4bf" opacity=".45"/><rect x="2" y="13" width="9" height="9" rx="2" fill="#2dd4bf" opacity=".45"/><rect x="13" y="13" width="9" height="9" rx="4.5" fill="#2dd4bf"/></svg><b>why-redis-is-fast</b><i>DEMO</i></a><!-- pb-shell --><!-- pb-back --><a class="pb-back" id="pb-back" href="https://github.com/anhquanbd2021/why-redis-is-fast" title="Back to the article — why-redis-is-fast">← Article <i>PLAYBOOK</i></a><script>(function(){var a=document.getElementById('pb-back');if(!a)return;var h=location.hostname;if(/^(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(h)){a.href='//'+h+':'+(/^(localhost|127\.0\.0\.1)$/.test(h)?'1234':'30082')+'/microsites/article.html?slug=why-redis-is-fast';}})();</script><!-- pb-back --></body>
+</html>
